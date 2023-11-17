@@ -6,7 +6,7 @@ from tkinter import ttk
 import ttkwidgets.autocomplete as ttkwa
 
 from logging_utils import *
-from settings import APP_RUNTIME_SETTINGS
+from settings import *
 
 
 @dataclass
@@ -90,7 +90,7 @@ class ConfigureWindow(tk.Toplevel):
         super().__init__(root, *args, **kwargs)
 
         self.title("Configure")
-        self.geometry(f"300x200+{root.winfo_x()}+{root.winfo_y()}")
+        self.geometry(f"300x200+{root.winfo_x() + 10}+{root.winfo_y() + 10}")
         
         bg = ttk.Frame(self)
         bg.pack(fill="both", expand=True)

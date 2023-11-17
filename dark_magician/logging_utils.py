@@ -1,35 +1,44 @@
 import functools
-import traceback
 import inspect
 import logging
-from typing import Any, Callable
-from dataclasses import is_dataclass, asdict
+import traceback
+from dataclasses import asdict, is_dataclass, make_dataclass
+from typing import Any, Callable, Collection
+
 import numpy as np
 import pandas as pd
+import tkinter as tk
+
+from settings import *
+
+
+logging.basicConfig(
+    filename = APP_RUNTIME_SETTINGS['log_file'], 
+    level = APP_RUNTIME_SETTINGS['log_level'], 
+    format = APP_RUNTIME_SETTINGS['log_format']
+)
+
 
 def _add_logging_formatter(val: Any) -> Any:
     try:
         if isinstance(val, pd.DataFrame):
             return f"[{val.iloc[0].to_dict()}, ... x{val.shape[0]}]"
         
-        if isinstance(val, np.ndarray):
-            length = val.shape[0]
-            if val.ndim == 2:
-                val = val[0]
-            return f"[{*val[:1],}, ... x{length}]"
-        
-        if isinstance(val, (tuple, list)):
-            if len(val) > 0 and is_dataclass(val[0]):
-                return f"[{ {key:_add_logging_formatter(iv) for key,iv in asdict(val[0]).items()} }, ... x{len(val)}]"
-            return f"[{*val[:1],}, ... x{len(val)}]"
-        
+        if isinstance(val, (tuple, list, np.ndarray)) and len(val) > 0:
+            if is_dataclass(val[0]):
+                return  f"[dataclass({ {key:_add_logging_formatter(iv) for key, iv in val[0].__dict__.items()} }), ... x{len(val)}]"
+            return f"[{_add_logging_formatter(val[0])}, ... x{len(val)}]"
+            
         if is_dataclass(val):
-            return f"{ {key:_add_logging_formatter(iv) for key,iv in asdict(val).items()} }"
+            return f"dataclass({ {key:_add_logging_formatter(iv) for key, iv in val.__dict__.items()} })"
 
-        return f"{val}"
+        if isinstance(val, tk.Variable):
+            return f"{val.get()}"
 
-    except:
-        return f"NOT_SERIALIZABLE"
+        return str(val)
+
+    except Exception as e:
+        return str(val)
 
 
 def add_logging(log_level: int = logging.DEBUG) -> Callable:
