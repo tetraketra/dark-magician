@@ -20,25 +20,23 @@ logging.basicConfig(
 
 
 def _add_logging_formatter(val: Any) -> Any:
-    try:
-        if isinstance(val, pd.DataFrame):
-            return f"[{val.iloc[0].to_dict()}, ... x{val.shape[0]}]"
+    if isinstance(val, pd.DataFrame):
+        return f"[{val.iloc[0].to_dict()}, ... x{val.shape[0]}]"
+    
+    if isinstance(val, (tuple, list, np.ndarray)) and len(val) > 0:
+        if is_dataclass(val[0]):
+            return  f"[dataclass(" \
+                    f"{ {key:_add_logging_formatter(iv) for key, iv in val[0].__dict__.items()} }" \
+                    f"), ... x{len(val)}]"
+        return f"[{_add_logging_formatter(val[0])}, ... x{len(val)}]"
         
-        if isinstance(val, (tuple, list, np.ndarray)) and len(val) > 0:
-            if is_dataclass(val[0]):
-                return  f"[dataclass({ {key:_add_logging_formatter(iv) for key, iv in val[0].__dict__.items()} }), ... x{len(val)}]"
-            return f"[{_add_logging_formatter(val[0])}, ... x{len(val)}]"
-            
-        if is_dataclass(val):
-            return f"dataclass({ {key:_add_logging_formatter(iv) for key, iv in val.__dict__.items()} })"
+    if is_dataclass(val):
+        return f"dataclass({ {key:_add_logging_formatter(iv) for key, iv in val.__dict__.items()} })"
 
-        if isinstance(val, tk.Variable):
-            return f"{val.get()}"
+    if isinstance(val, tk.Variable):
+        return f"{val.get()}"
 
-        return str(val)
-
-    except Exception as e:
-        return str(val)
+    return str(val)
 
 
 def add_logging(log_level: int = logging.DEBUG) -> Callable:
