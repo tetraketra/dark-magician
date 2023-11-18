@@ -8,7 +8,6 @@ from collections import defaultdict
 from typing import Any, Callable, ValuesView, KeysView, ItemsView
 
 import numpy as np
-import pandas as pd
 import tkinter as tk
 
 from settings import *
@@ -23,11 +22,8 @@ logging.basicConfig(
 
 def _add_logging_formatter(val: Any) -> Any:
     to_return = None
-    
-    if isinstance(val, pd.DataFrame):
-        to_return = f"[{val.iloc[0].to_dict()}, ... x{val.shape[0]}]"
-    
-    elif isinstance(val, (tuple, list, np.ndarray)) and len(val) > 0:
+
+    if isinstance(val, (tuple, list, np.ndarray)) and len(val) > 0:
         if is_dataclass(val[0]):
             to_return =  f"[dataclass(" \
                          f"{ {key:_add_logging_formatter(iv) for key, iv in val[0].__dict__.items()} }" \
@@ -42,9 +38,6 @@ def _add_logging_formatter(val: Any) -> Any:
 
     elif isinstance(val, (ValuesView, KeysView, ItemsView)):
         to_return = f"{ {'...(dictview)...':_add_logging_formatter(list(val))} }"
-
-    elif isinstance(val, pd.Series):
-        to_return = f"{val.to_dict()}"
 
     elif isinstance(val, tk.Variable):
         to_return = f"{val.get()}"
