@@ -6,6 +6,7 @@ from logging_utils import *
 from settings import *
 from effect import *
 
+
 MAX_COLS = 5
 
 
@@ -29,35 +30,34 @@ class TabviewEffectsConstructor(ctk.CTkTabview):
         self.effect_count: int = abilities
         self.effects: list[Effect] = []
         self.add_effect()
-        
 
 
     def get_effect(self) -> Effect:
         return self.effects[int(self.get().split("#")[1]) - 1]
 
-    
+
     def add_effect(self) -> None:
         self.effect_count += 1
-        
+
         self.add(f"Effect #{self.effect_count}")
         self.set(f"Effect #{self.effect_count}")
-        
+
         self.effects.append(Effect_Root(master=self.tab(self.get()), repack_binding=self.repack))
 
         self.repack()
-        
-        
+
+
     def repack(self) -> None:
         render_tree: list[Effect] = self.get_effect().render_tree(get="effect_class", flatten=True, condense=False)
         for index, effect in enumerate(render_tree):
             effect: Effect
             effect.widget.grid_remove()
-        
+
         render_tree: list[Effect] = self.get_effect().render_tree(get="effect_class", flatten=True, condense=True)
         for index, effect in enumerate(render_tree):
             effect: Effect
             effect.widget.grid(row = index // MAX_COLS, column = index % MAX_COLS)
-                
+
         render_tree: list[str] = self.get_effect().render_tree(get="var_values", flatten=True)
         self.text_render_binding("".join(render_tree).replace("  ", "") or "~ effectless ~")
 
@@ -69,10 +69,10 @@ class TabviewEffectsConstructor(ctk.CTkTabview):
         self.effect_count -= 1
         self.effects.pop(deleted_tab_num - 1)
         self.delete(deleted_tab)
-        
+
         for tab_num in range(deleted_tab_num + 1, self.effect_count + 2):
             self.rename(
-                old_name=f"Effect #{tab_num}", 
+                old_name=f"Effect #{tab_num}",
                 new_name=f"Effect #{tab_num - 1}"
             )
 
@@ -93,10 +93,10 @@ class tkinterApp(ctk.CTk):
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
-        
+
         # background
         bg = ctk.CTkFrame(self)
-        bg.grid(row=0, column=0, sticky="nsew") 
+        bg.grid(row=0, column=0, sticky="nsew")
         bg.grid_columnconfigure(0, weight=1)
         bg.grid_rowconfigure(1, weight=1) # button area (0) is min size, the rest stretches to fit
 
@@ -110,7 +110,7 @@ class tkinterApp(ctk.CTk):
         }
         for i, (label, button) in enumerate(buttons.items()):
             button.grid(row=0, column=i, sticky="nsew")
-        
+
         # main content
         main_content = ctk.CTkFrame(bg)
         main_content.grid(row=1, column=0, columnspan=len(buttons), sticky="nswe")
@@ -123,9 +123,9 @@ class tkinterApp(ctk.CTk):
 
         abilities_constructor = TabviewEffectsConstructor(master=main_content, text_render_binding=effect_plaintext.set_text)
         abilities_constructor.grid(row=0, column=0, columnspan=len(buttons), sticky="nsew")
+
         buttons["-"].configure(command=abilities_constructor.remove_Effect)
         buttons["+"].configure(command=abilities_constructor.add_effect)
-        
 
-        
-            
+
+

@@ -14,8 +14,8 @@ from settings import *
 
 
 logging.basicConfig(
-    filename = APP_RUNTIME_SETTINGS['log_file'], 
-    level = APP_RUNTIME_SETTINGS['log_level'], 
+    filename = APP_RUNTIME_SETTINGS['log_file'],
+    level = APP_RUNTIME_SETTINGS['log_level'],
     format = APP_RUNTIME_SETTINGS['log_format']
 )
 
@@ -29,7 +29,7 @@ def _add_logging_formatter(val: Any) -> Any:
                          f"{ {key:_add_logging_formatter(iv) for key, iv in val[0].__dict__.items()} }" \
                          f"), ... x{len(val)}]"
         to_return = f"[{_add_logging_formatter(val[0])}, ... x{len(val)}]"
-        
+
     elif is_dataclass(val):
         to_return = f"dataclass({ {key:_add_logging_formatter(iv) for key, iv in val.__dict__.items()} })"
 
@@ -41,7 +41,7 @@ def _add_logging_formatter(val: Any) -> Any:
 
     elif isinstance(val, tk.Variable):
         to_return = f"{val.get()}"
-        
+
     else:
         to_return = str(val) # `str(val)` may error, so it's at the end
 

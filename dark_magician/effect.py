@@ -18,9 +18,9 @@ class EffectBaseClass_Root:
 
 class Effect:
     def __init__(
-        self, 
+        self,
         master: ctk.CTk, options: list[str],
-        repack_binding: Callable,  
+        repack_binding: Callable,
         left: list['Effect'] = None, right: list['Effect'] = None,
         vartype: ctk.Variable = ctk.StringVar
     ) -> 'Effect':
@@ -30,35 +30,35 @@ class Effect:
 
         self.ctkvar: ctk.Variable = vartype(master, "")
         self.widget: ctk.CTkBaseClass = ctk.CTkOptionMenu(master, variable=self.ctkvar, values=options)
-        
+
         self.left: list['Effect']  = left if isinstance(left, list) else ([left] if left else None)
         self.right: list['Effect'] = right if isinstance(right, list) else ([right] if right else None)
 
 
     def _render_tree(
-        self, 
+        self,
         get
     ) -> str | list['Effect']:
 
         tree = [self.ctkvar.get()] if get=="var_values" else [self]
-                
+
         if self.left:
             for left in reversed(self.left):
                 tree.insert(0, left._render_tree(get=get))
         if self.right:
             for right in self.right:
                 tree.append(right._render_tree(get=get))
-            
+
         return tree
 
 
     def render_tree(
-        self, 
+        self,
         get: Literal["var_values", "effect_class"] = "var_values",
         condense: bool = False,
         flatten: bool = False
     ) -> str | list['Effect']:
-        
+
         tree = self._render_tree(get=get)
         if flatten:
             tree = [e for e in list(mit.collapse(tree, base_type=Effect)) if e]
@@ -75,9 +75,8 @@ class Effect:
                         ignoring = False
                     if ignoring:
                         if isinstance(e, (EffectBaseClass_Extender, EffectBaseClass_Final)) and not e.ctkvar.get():
-                            print(f"skipping: {e=}, {e.ctkvar.get()=}")
                             continue
-                        
+
                     right_pass.append(e)
 
                 left_pass = []
@@ -90,13 +89,12 @@ class Effect:
                         ignoring = False
                     if ignoring:
                         if isinstance(e, (EffectBaseClass_Extender, EffectBaseClass_Final)) and not e.ctkvar.get():
-                            print(f"skipping: {e=}, {e.ctkvar.get()=}")
                             continue
 
                     left_pass.append(e)
 
-                tree = list(left_pass)        
-                    
+                tree = list(left_pass)
+
         return tree
 
 
@@ -105,9 +103,9 @@ class Effect:
             for sleft in self.left:
                 sleft.destroy()
 
-        self.left = None  
+        self.left = None
         self.left = left if isinstance(left, list) else ([left] if left else None)
-        
+
         self.repack_binding()
 
 
@@ -116,7 +114,7 @@ class Effect:
             for sright in self.right:
                 sright.destroy()
 
-        self.right = None  
+        self.right = None
         self.right = right if isinstance(right, list) else ([right] if right else None)
 
         self.repack_binding()
@@ -132,7 +130,7 @@ class Effect:
             for right in self.right:
                 right.destroy()
             self.right = None
-            
+
         if self.widget:
             self.widget.destroy()
 
@@ -143,15 +141,17 @@ class Effect_Root(Effect, EffectBaseClass_Root):
             master = master,
             repack_binding = repack_binding,
             options = [
-                "when ", 
-                "if ", 
+                "when ",
+                "if ",
                 "at any time ",
+                "after ",
+                "before ",
             ]
         )
-        
+
         self.widget.configure(
             command = lambda _: [
-                self.set_left(Effect_RootConditionalRoot(master=master, repack_binding=self.repack_binding)), 
+                self.set_left(Effect_RootConditionalRoot(master=master, repack_binding=self.repack_binding)),
                 self.set_right()
             ]
         )
@@ -163,7 +163,7 @@ class Effect_RootConditionalRoot(Effect):
             master = master,
             repack_binding = repack_binding,
             options = [
-                "during ", 
+                "during ",
                 "after ",
                 "before ",
             ]
@@ -171,7 +171,7 @@ class Effect_RootConditionalRoot(Effect):
 
         self.widget.configure(
             command = lambda _: [
-                self.set_left(), 
+                self.set_left(),
                 self.set_right([
                     Effect_RootConditionalPlayerOwnership(master=master, repack_binding=self.repack_binding),
                     EffectAndOr(master=master, repack_binding=self.repack_binding, extend_with=Effect_RootConditionalRoot)
@@ -186,7 +186,7 @@ class Effect_RootConditionalPlayerOwnership(Effect):
             master = master,
             repack_binding = repack_binding,
             options = [
-                "your ", 
+                "your ",
                 "your opponent's ",
                 "either player's ",
             ]
@@ -194,7 +194,7 @@ class Effect_RootConditionalPlayerOwnership(Effect):
 
         self.widget.configure(
             command = lambda _: [
-                self.set_left(), 
+                self.set_left(),
                 self.set_right([
                     Effect_RootConditionalPhase(master=master, repack_binding=self.repack_binding),
                     EffectAndOr(master=master, repack_binding=self.repack_binding, extend_with=Effect_RootConditionalPlayerOwnership)
@@ -219,7 +219,7 @@ class Effect_RootConditionalPhase(Effect):
 
         self.widget.configure(
             command = lambda _: [
-                self.set_left(), 
+                self.set_left(),
                 self.set_right([
                     EffectAndOr(master=master, repack_binding=self.repack_binding, extend_with=Effect_RootConditionalPhase),
                     Effect_RootConditionalFinal(master=master, repack_binding=self.repack_binding),
@@ -241,14 +241,14 @@ class Effect_RootConditionalFinal(Effect, EffectBaseClass_Final):
 
         self.widget.configure(
             command = lambda _: [
-                self.set_left(), 
+                self.set_left(),
                 self.set_right()
             ]
         )
 
 
 class EffectAndOr(Effect, EffectBaseClass_Extender):
-        def __init__(self, master: ctk.CTk, repack_binding: Callable, extend_with: Effect) -> None:
+        def __init__(self, master: ctk.CTk, repack_binding: Callable, extend_with: Effect | list[Effect]) -> None:
             super().__init__(
                 master = master,
                 repack_binding = repack_binding,
@@ -261,8 +261,12 @@ class EffectAndOr(Effect, EffectBaseClass_Extender):
 
             self.widget.configure(
                 command = lambda _: [
-                    self.set_left(), 
-                    self.set_right(extend_with(master=master, repack_binding=self.repack_binding)) if self.ctkvar.get() else self.set_right(),
+                    self.set_left(),
+                    self.set_right([
+                        ex(master=master, repack_binding=self.repack_binding) for ex in extend_with] \
+                            if isinstance(extend_with, list) \
+                        else list(extend_with(master=master, repack_binding=self.repack_binding))
+                    ) if self.ctkvar.get() else self.set_right(),
                 ]
             )
 
