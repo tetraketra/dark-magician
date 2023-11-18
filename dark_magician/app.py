@@ -1,118 +1,131 @@
-import json
 import tkinter as tk
-from dataclasses import dataclass
-from tkinter import ttk
-
-import ttkwidgets.autocomplete as ttkwa
+import customtkinter as ctk
+import more_itertools as mit
 
 from logging_utils import *
 from settings import *
+from effect import *
+
+MAX_COLS = 5
 
 
-@dataclass
-class tkinterAppSettings:
-    root: tk.Tk
-    theme: tk.StringVar = None
-
-
-    def __post_init__(self):
-        self.theme = tk.StringVar(self.root)
-
-        try:
-            with open(APP_RUNTIME_SETTINGS['settings_file'], "r") as f:
-                json_converted: dict = json.load(f)
-                self.set_theme(json_converted['theme'])
-                
-        except FileNotFoundError:
-            self.set_theme("forest-dark")
-            
-
-
-    def __repr__(self):
-        return str({
-            key:val.get() for key, val in self.__dict__.items() \
-            if key != "root"
-        })
-
-
-    def write_on_call(func):
-        def wrapper(self, value):
-            func(self, value)
-            self.write_settings()
-        return wrapper
-
-
-    @add_logging(log_level=logging.INFO)
-    def write_settings(self):
-        with open(APP_RUNTIME_SETTINGS['settings_file'], "w") as f:
-            json_converted = {
-                key:val.get() for key, val in self.__dict__.items() \
-                if key != "root"
-            }
-            json.dump(json_converted, f)
-
-
-    @write_on_call
-    @add_logging(log_level=logging.DEBUG)
-    def set_theme(self, theme: str) -> None:
-        self.theme.set(theme)
-        if theme in ("forest-dark", "forest-light"):
-            ttk.Style().theme_use(theme)
-        if theme in ("azure-dark", "azure-light"):
-            self.root.tk.call("set_theme", theme.split("-")[1])
-
-        
-class tkinterApp(tk.Tk):
+class TextboxEffectPlaintext(ctk.CTkTextbox):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.configure(state="disabled")
+
+    def set_text(self, text: str) -> None:
+        self.configure(state="normal")
+        self.delete("1.0", "end")
+        self.insert("1.0", text)
+        self.configure(state="disabled")
+
+
+class TabviewEffectsConstructor(ctk.CTkTabview):
+    def __init__(self, text_render_binding: Callable, abilities: int = 0, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.text_render_binding = text_render_binding
+        self.effect_count: int = abilities
+        self.effects: list[Effect] = []
+        self.add_effect()
+        
+
+
+    def get_effect(self) -> Effect:
+        return self.effects[int(self.get().split("#")[1]) - 1]
+
+    
+    def add_effect(self) -> None:
+        self.effect_count += 1
+        
+        self.add(f"Effect #{self.effect_count}")
+        self.set(f"Effect #{self.effect_count}")
+        
+        self.effects.append(Effect_Root(master=self.tab(self.get()), repack_binding=self.repack))
+
+        self.repack()
+        
+        
+    def repack(self) -> None:
+        render_tree: list[Effect] = self.get_effect().render_tree(get="effect_class", flatten=True, condense=False)
+        for index, effect in enumerate(render_tree):
+            effect: Effect
+            effect.widget.grid_remove()
+        
+        render_tree: list[Effect] = self.get_effect().render_tree(get="effect_class", flatten=True, condense=True)
+        for index, effect in enumerate(render_tree):
+            effect: Effect
+            effect.widget.grid(row = index // MAX_COLS, column = index % MAX_COLS)
+                
+        render_tree: list[str] = self.get_effect().render_tree(get="var_values", flatten=True)
+        self.text_render_binding("".join(render_tree).replace("  ", "") or "~ effectless ~")
+
+
+    def remove_Effect(self) -> None:
+        deleted_tab = self.get()
+        deleted_tab_num = int(deleted_tab.split("#")[1])
+
+        self.effect_count -= 1
+        self.effects.pop(deleted_tab_num - 1)
+        self.delete(deleted_tab)
+        
+        for tab_num in range(deleted_tab_num + 1, self.effect_count + 2):
+            self.rename(
+                old_name=f"Effect #{tab_num}", 
+                new_name=f"Effect #{tab_num - 1}"
+            )
+
+        if self.effect_count > 1:
+            self.set(f"Effect #{max(deleted_tab_num - 1, 1)}")
+            if self.index(self.get()) + 1 != self.effect_count:
+                self.set(f"Effect #{deleted_tab_num}")
+
+
+class tkinterApp(ctk.CTk):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("green")
 
         self.title("Dark Magician")
-        self.geometry("400x400")
+        self.geometry("800x800")
+
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
         
-        self.tk.call("source", "../themes/azure.tcl")
-        self.tk.call("source", "../themes/forest-dark.tcl")
-        self.tk.call("source", "../themes/forest-light.tcl")
+        # background
+        bg = ctk.CTkFrame(self)
+        bg.grid(row=0, column=0, sticky="nsew") 
+        bg.grid_columnconfigure(0, weight=1)
+        bg.grid_rowconfigure(1, weight=1) # button area (0) is min size, the rest stretches to fit
 
-        self.settings = tkinterAppSettings(self)
-
-        bg = ttk.Frame(self)
-        bg.pack(fill="both", expand=True)
-
-        self.configure_button = ttk.Button(
-            bg, text="⚙️", width=len("⚙️"),
-            command=lambda: ConfigureWindow(root=self), 
-        )
-        self.configure_button.pack(anchor="ne")
-
-
-class ConfigureWindow(tk.Toplevel):
-    def __init__(self, root: tkinterApp, *args, **kwargs):
-        super().__init__(root, *args, **kwargs)
-
-        self.title("Configure")
-        self.geometry(f"300x200+{root.winfo_x() + 10}+{root.winfo_y() + 10}")
-        
-        bg = ttk.Frame(self)
-        bg.pack(fill="both", expand=True)
-
-        themes = ["forest-dark", "forest-light", "azure-dark", "azure-light"]
-        theme_selector = ttkwa.AutocompleteCombobox(
-            bg, themes, width=len(max(themes, key=len)),
-            textvariable=root.settings.theme
-        )
-        theme_selector.bind(
-            "<<ComboboxSelected>>", 
-            lambda _: [root.settings.set_theme(theme_selector.get())],
-        )
-
-        labeled_options = {
-            "Select Theme":theme_selector
+        # buttons
+        buttons = {
+            " ":ctk.CTkButton(bg, text = " ", state="disabled"),
+            "-":ctk.CTkButton(bg, text = "-", width=80),
+            "+":ctk.CTkButton(bg, text = "+", width=80),
+            "Import":ctk.CTkButton(bg, text="Import"),
+            "Export":ctk.CTkButton(bg, text="Export")
         }
+        for i, (label, button) in enumerate(buttons.items()):
+            button.grid(row=0, column=i, sticky="nsew")
+        
+        # main content
+        main_content = ctk.CTkFrame(bg)
+        main_content.grid(row=1, column=0, columnspan=len(buttons), sticky="nswe")
+        main_content.grid_columnconfigure(0, weight=1)
+        main_content.grid_rowconfigure(0, weight=5)
 
-        for index, (label, widget) in enumerate(labeled_options.items()):
-            label = ttk.Label(bg, text=label)
-            label.grid(row=index, column=0, sticky="w", padx=5)
-            widget.grid(row=index, column=1, sticky="e", padx=5)
+        effect_plaintext = TextboxEffectPlaintext(master=main_content, wrap=tk.WORD)
+        effect_plaintext.grid(row=1, column=0, columnspan=len(buttons), sticky="nsew")
+        effect_plaintext.set_text("~ nothing here yet ~")
 
-        self.update_idletasks()
-        self.geometry(f"{self.winfo_width()}x{self.winfo_reqheight()}")
+        abilities_constructor = TabviewEffectsConstructor(master=main_content, text_render_binding=effect_plaintext.set_text)
+        abilities_constructor.grid(row=0, column=0, columnspan=len(buttons), sticky="nsew")
+        buttons["-"].configure(command=abilities_constructor.remove_Effect)
+        buttons["+"].configure(command=abilities_constructor.add_effect)
+        
+
+        
+            
